@@ -68,9 +68,15 @@ async function frontHandler(userInteraction, isSlash) {
 
     let curFronter;
     let curSystem;
+    let fronterName;
     try {
         curFronter = await getFronter(userInQuestionId);
-        curSystem = await getSystem(curFronter.members[0].system);
+        curSystem = await getSystem(userInQuestionId);
+        if (!curFronter.members[0]) { //if we have a system, but nobody fronting
+            fronterName = "(no fronter)"
+        } else {
+            fronterName = curFronter.members[0].name;
+        }
     } catch {
         let pluralNotFoundMessage = "y-you don't seem to have pluralkit,, >_<;;"
         if (!isSlash) {
@@ -92,7 +98,7 @@ async function frontHandler(userInteraction, isSlash) {
                 description = curSystem.pronouns.split('/')[0]+'s ';
             }
         } catch {
-            console.log(`\x1b[33md-doesnt look like ${curFronter.members[0].name} has any pronouns,,. defaulting to they/them!! >_<;;\x1b[0m`);
+            console.log(`\x1b[33md-doesnt look like ${fronterName} has any pronouns,,. defaulting to they/them!! >_<;;\x1b[0m`);
         }
     }
 
@@ -107,17 +113,24 @@ async function frontHandler(userInteraction, isSlash) {
     try {
         sidebarColor = curFronter.members[0].color;
     } catch {
-        console.log(`\x1b[33md-doesnt look like ${curFronter.members[0].name} has a color associated with them,, >_<;;\x1b[0m`);
+        console.log(`\x1b[33md-doesnt look like ${fronterName} has a color associated with them,, >_<;;\x1b[0m`);
+    }
+
+    let fronterPfp = `https://cdn.discordapp.com/app-icons/1340778139886031008/56508c96af2eb1afa323d3b87e3e7f1d.png`;
+    try {
+        fronterPfp = curFronter.members[0].avatar_url;
+    } catch {
+        console.log(`\x1b[33md-doesnt look like ${fronterName} has a pfp,, >_<;;\x1b[0m`);
     }
 
     let fronterEmbed = new EmbedBuilder()
-        .setTitle(`${curFronter.members[0].name}!! :0 | ${curSystem.name}~`)
-        .setThumbnail(curFronter.members[0].avatar_url)
+        .setTitle(`${fronterName}!! :0 | ${curSystem.name}~`)
+        .setThumbnail(fronterPfp)
         .setDescription(description)
         .setColor(sidebarColor)
 
     let returnMessage = {
-        content:`looks like ${curFronter.members[0].name} is fronting for ${curSystem.name} right now,, >.<`,
+        content:`looks like ${fronterName} is fronting for ${curSystem.name} right now,, >.<`,
         embeds: [fronterEmbed]
     };
     if (!isSlash) {
