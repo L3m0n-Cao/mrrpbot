@@ -1,12 +1,5 @@
-/* websocket stuff - used for opening a connection with flanstore + yuru.ca backend :3 */
-const WebSocket = require('ws');
-const flanbridge = new WebSocket('ws://127.0.0.1:6767');
-const serverConnections = [
-  { "name": "flanbridge", "socketData": flanbridge }
-];
-
 /* discord.js imports */
-const { Client, Events, GatewayIntentBits, Partials, Collection, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } = require('discord.js');
+const { Client, Events, GatewayIntentBits, Partials, Collection, EmbedBuilder, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 const { frontHandler } = require('./commands/front.js');
 const { meowHandler } = require('./meowhandler.js');
@@ -19,7 +12,6 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 const defaultColour = process.env.EMBED_COLOUR ?? '#7D6D78';
-console.log(defaultColour);
 
 const client = new Client({
     intents: [
@@ -173,52 +165,8 @@ function updateCacheWhileRunning(message, isReaction, emoji) {
 	}
 }
 
-var currentlyOpenButtons = 0;
-var userStorage = [];
-
-for (let i = 0; i < serverConnections.length; i++) {
-  serverConnections[i].socketData.on('open', () => {
-    console.log(`connected to ${serverConnections[i].name} :0 she's so cute,,`);
-  });
-
-  serverConnections[i].socketData.on('close', () => {
-    console.log(`disconnected from ${serverConnections[i].name} ;w; mouu.., `);
-  });
-
-  serverConnections[i].socketData.on('error', () => {
-    console.log(`\x1b[33ms-something went wrong with ${serverConnections[i].name},, this could be because you launched me without her!! >_<;;\x1b[0m`);
-  });
-}
-
 client.once(Events.ClientReady, readyClient => {
   console.log(`poke poke,, logged in on ${readyClient.user.tag} >w< nya~?`);
-
-  flanbridge.on('message', message => {
-	message = JSON.parse(message);
-	if (message.type === "userAdd") {
-	  let userCreateEmbed = new EmbedBuilder()
-		.setTitle("new user wants to join flanstore!! :0")
-		.setColor("#c17342")
-		.addFields(
-		  {name: 'discord handle', value: `@${message.userDiscord}`},
-		  {name: 'subdomain', value: message.subdomain}
-		)
-
-		let acceptButton = new ButtonBuilder()
-		  .setCustomId('accept-'+currentlyOpenButtons) //makes it so we can always keep track of how many buttons are open :3
-		  .setLabel('accept >w<')
-		  .setStyle(ButtonStyle.Success)
-		let denyButton = new ButtonBuilder()
-		  .setCustomId('deny-'+currentlyOpenButtons)
-		  .setLabel('deny ;w;')
-		  .setStyle(ButtonStyle.Danger)
-		currentlyOpenButtons++;
-		userStorage.push(message);
-
-		let buttonRow = new ActionRowBuilder().addComponents(acceptButton, denyButton);
-		client.users.send('245588170903781377', { embeds: [userCreateEmbed], components: [buttonRow] }); //i'd like to add a pfp option in flanstore before you sign up ^-^
-	  }
-	});
 });
 
 client.on(Events.MessageCreate, async message => {
@@ -279,7 +227,7 @@ client.on(Events.MessageCreate, async message => {
 		return message.channel.send(`<@${message.author.id}>!! <@${message.author.id}>!! i-i finished caching everything! i-it took ${cacheTotalTime}~`);
 	}
 
-	/* :OOOO AI integration??? */
+	/* :OOOO AI integration??? not for now~ >.< different server means we can't...
   	if (message.channel.type === 11 && message.channel.ownerId === "1340778139886031008") { //if we're in a thread created by ourselves (ai stuff :3)
     	return await handleThreadMessages(message.channel, { role: "user", content: `${message.author.globalName}: ${message.content}` });
   	}
@@ -295,35 +243,9 @@ client.on(Events.MessageCreate, async message => {
 
       		return await handleThreadMessages(newMessageThread, { role: "user", content: `${message.author.globalName}: ${pingMessage}` }); //kills processing the message too, since we return twice~
     	}
-	}
+	} */
 });
 
-let aiContext = [];
-async function handleThreadMessages(thread, message) {
-  let curThread = aiContext.findIndex(obj => obj.thread === thread); //gives us the thread index :3
-  console.log(curThread);
-
-  if (curThread !== -1) {
-    aiContext[curThread].messages.push(message);
-    console.log(aiContext[curThread].messages);
-  } else {
-    aiContext.push({ thread, messages: [message] });
-    curThread = aiContext.findIndex(obj => obj.thread === thread); //this should exist now :3
-  }
-
-  //ping endpoint for our awesome ai shit :3
-  let aiResponse = await fetch(`http://127.0.0.1:3232/v1/chat/completions`, { //should be perfectly fine, since we're using localhost here
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ messages: aiContext[curThread].messages }),
-  });
-  aiResponse = await aiResponse.json();
-
-  aiContext[curThread].messages.push(aiResponse.choices[0].message);
-  return thread.send(aiResponse.choices[0].message.content);
-}
 
 client.on(Events.MessageReactionAdd, async (reaction) => {
 	if (reaction.partial) { //sometimes discord decides to be bitchy and bratty and we need to correct it 💢
@@ -341,21 +263,6 @@ client.on(Events.MessageReactionAdd, async (reaction) => {
 });
 
 client.on(Events.InteractionCreate, async interaction => {
-  if (interaction.isButton()) { //accept/deny buttons for flanstore
-    await interaction.deferReply(); //we need to let discord know that we got their interaction, we're just gonna reply in a sec :3
-    for (let i = 0; i < currentlyOpenButtons; i++) {
-      if (interaction.customId === 'accept-'+i) {
-          flanbridge.send(JSON.stringify({ "type": "userAdd", "userInfo": userStorage[i], "result": "accept" }));
-          await interaction.editReply('got it!! >w< user added~ just make sure to set up their cloudflare tunnel + DNS settings for yuru.ca too, okay~,,?');
-      } else { //only other option is deny, and using the customId seems to break things somehow :O
-          flanbridge.send(JSON.stringify({ "type": "userAdd", "result": "deny" })); //we don't exactly need to send over a deny, but it's good to have anyways ^-^
-          await interaction.editReply("o-okay,, :c i won't accept this user..,");
-      }
-      currentlyOpenButtons--;
-      userStorage.splice(i, 1); //removes the user from storage too
-    }
-  }
-
 	if (!interaction.isChatInputCommand()) return; //if it's not a chat input command at this point, then we don't need it :3
 	let command = interaction.client.commands.get(interaction.commandName);
 

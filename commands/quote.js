@@ -11,7 +11,7 @@ async function randomQuote(userInteraction, isSlash) {
     
     if (!isSlash) {
         let userMessage = userInteraction.content.split('?quote ')[1];
-        if (userMessage != undefined) { //if we have parameters, like unfiltered or a user to search for 
+        if (userMessage) { //if we have parameters, like unfiltered or a user to search for 
             if (userMessage.includes('unfiltered')) {
                 isFiltered = false;
             }
@@ -108,7 +108,7 @@ async function randomQuote(userInteraction, isSlash) {
     if (embedRegex.test(quoteMessage.content)) {
         embed = quoteMessage.content.match(embedRegex)[0];
         quoteMessage.content = quoteMessage.content.replace(embed, '');
-        if (quoteMessage.content.length == 0) {
+        if (quoteMessage.content.length === 0) {
             quoteMessage.content = "(no message provided >_<)";
         } 
     }

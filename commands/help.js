@@ -7,12 +7,11 @@ function helpMessage(channel, isSlash) {
     let helpEmbed = new EmbedBuilder()
     .setTitle('hihiii!! :D')
     .setThumbnail('https://cdn.discordapp.com/avatars/1340778139886031008/56508c96af2eb1afa323d3b87e3e7f1d') //bot pfp
-    .setDescription('im sydneys bot that can help with various things >w<\nheres a list of all the commands that i have so far,,')
     .setColor(process.env.EMBED_COLOUR ?? '#7D6D78')
     .addFields(
         {name: '?help', value: 'displays this message!! :3 \nthese are all the commands i know >_<'},
-        {name: '?front ``name``', value: 'displays whos fronting :3 \ncan accept a username, server nickname, or @ing someone'},
-        {name: '?quote ``unfiltered`` ``name``', value: 'pulls a random quote from the current server~ >w<\n``unfiltered`` searches for messages with/without 🔥 reacts :3\n``name`` is the name of the person you want to quote~ >w<\nboth of these can be blank, tho~'}
+        {name: '?front ``name``', value: 'displays whos fronting in a system, using pluralkit :3 \ncan accept a username, server nickname, or @ing someone'},
+        {name: '?quote ``unfiltered?`` ``name?``', value: 'pulls a random quote from the current server~ >w<\n``unfiltered`` searches for messages with/without 🔥 reacts :3\n``name`` is the name of the person you want to quote~ >w<\nboth of these can be blank, tho~'}
     )
     
     let returnText = { embeds: [helpEmbed] }

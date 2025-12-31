@@ -1,0 +1,8 @@
+services:
+  server:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ../mrrp-cache:/usr/local/mrrpbot/messagecache
+    restart: unless-stopped

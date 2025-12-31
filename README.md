@@ -16,6 +16,8 @@ the `TOKEN` (discord bot token) and `CLIENT_ID` (discord bot client id)
 
 you can also edit the `EMBED_COLOUR` as a hex value to make its default embed colour something different, as well as changing the `CACHE_WRITE_FREQUENCY` to however frequently you prefer (in ms).
 
+also recently added, docker support! in order to use this bot with docker, create a `mrrp-cache` directory for caching outside of this folder, and then run `docker compose run --build` to start~
+
 ## status
 
 this bot was mainly maintained by sydney, but seeing as she hasn't been fronting anymore, i (lilac) have chosen to not maintain this bot myself. other features are quite broken and hard to work with, so i'd rather not continue development. 
