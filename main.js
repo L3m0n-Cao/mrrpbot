@@ -213,7 +213,7 @@ client.on(Events.MessageCreate, async message => {
 	}
 
 	//easter egg for may~
-	if (message.content.startsWith.toLowerCase(`<@1340778139886031008> i love u`) || message.content.startsWith.toLowerCase(`<@1340778139886031008> i love y`)) {
+	if (message.content.startsWith(`<@1340778139886031008> i love u`) || message.content.startsWith(`<@1340778139886031008> i love y`)) {
 		if (message.author.id === '1407800779275767920') {
 			return message.channel.send('i-i.. i love you too mayow >.<;;;;');
 		} else {
