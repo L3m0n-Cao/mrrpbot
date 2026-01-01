@@ -212,6 +212,15 @@ client.on(Events.MessageCreate, async message => {
 		return message.channel.send("u-um,, are you sure? this may take a little while, a-and it requires a lot of resources too...\nb-but!! if it's your first time doing this, then it will mean the cache will persist through bot restarts!! >.<\n\nonly sydney should really be doing this, s-so i only trust her to give me the magic word for right now...\n-# or lilac if you're here too.. i trust you too!!");
 	}
 
+	//easter egg for may~
+	if (message.content.startsWith(`<@1340778139886031008> i love u`) || message.content.startsWith(`<@1340778139886031008> i love y`)) {
+		if (message.author.id === '1407800779275767920') {
+			return message.channel.send('i-i.. i love you too mayow >.<;;;;');
+		} else {
+			return message.channel.send('i love you too,, but not as much as may >_<!!,,');
+		}
+	}
+
 	if (cacheRestartPrimed && message.content == "yes" && (message.author.id == '226885796739678229' || message.author.id == '245588170903781377')) {
 		message.channel.send('sure thing!! h-here goes nothing.. >_<');
 		let cacheStartTime = performance.now();
