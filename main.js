@@ -6,7 +6,7 @@ const { meowHandler } = require('./meowhandler.js');
 const { randomQuote } = require('./commands/quote.js');
 const { helpMessage } = require('./commands/help.js');
 const { generateLeaderboard } = require('./commands/leaderboard.js');
-const { updateCacheWhileRunning, formatMessage } = require('./filemanagement.js');
+const { updateCacheWhileRunning, formatMessage, getMeowDb } = require('./filemanagement.js');
 
 const fs = require('node:fs');
 const dotenv = require('dotenv');
@@ -44,6 +44,13 @@ commandList.forEach(file => {
 async function storeServerMessages(curGuildId, guildName) {
 	/* while caching the server info works fine, this means that the bot has to reload the entire cache whenever it goes offline */
 	console.log(`started caching messages from ${guildName} :0`);
+	const db = getMeowDb();
+	const insert = db.prepare(`
+		INSERT OR REPLACE INTO messages 
+		(message_id, channel_id, guild_id, guild_name, author_id, content, attachment_url, fire_reacts, tomato_reacts, sob_reacts, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`);
+	
 	let guildChannels = client.guilds.cache.get(curGuildId).channels.cache.values();
 	let guildChannelsArray = Array.from(guildChannels);
 	for (let i = 0; i < guildChannelsArray.length; i++) {
@@ -68,17 +75,30 @@ async function storeServerMessages(curGuildId, guildName) {
 					});
 				}
 
-				if (!fs.existsSync(`./messagecache/${channel.guild.name}`)) {
-					fs.mkdirSync(`./messagecache/${channel.guild.name}`, { recursive: true });
-				}
-
-				fs.writeFile(`./messagecache/${channel.guild.name}/${channel.id}.json`, JSON.stringify(messages, null, 2), function (err) {
-					if (err) console.log(err);
-					console.log(`wrote ${messages.length} messages to ${channel.guild.name}'s #${channel.name}.json >w<`)
+				const transaction = db.transaction((messages) => {
+					for (const msg of messages) {
+						insert.run(
+							msg.id,
+							msg.channelId,
+							msg.guildId,
+							guildName,
+							msg.authorId,
+							msg.content || null,
+							msg.attachmentUrl || null,
+							msg.fireReacts || 0,
+							msg.tomatoReacts || 0,
+							msg.sobReacts || 0,
+							Date.now()
+						);
+					}
 				});
+				
+				transaction(messages);
+				console.log(`wrote ${messages.length} messages to ${channel.guild.name}'s #${channel.name} in database >w<`);
 			}
-		} catch {
+		} catch (err) {
 			console.log(`\x1b[33mfetching messages from ${channel.guild.name}'s #${channel.name} failed, likely due to missing access >_<;; gomen,,\x1b[0m`);
+			if (err) console.log(err);
 		}
 	}
 }

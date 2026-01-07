@@ -17,6 +17,26 @@ function getMeowDb() {
                 timestamp INTEGER NOT NULL
             );
             CREATE INDEX IF NOT EXISTS idx_user_server ON meows(user, server_name);
+            
+            CREATE TABLE IF NOT EXISTS messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                message_id TEXT NOT NULL UNIQUE,
+                channel_id TEXT NOT NULL,
+                guild_id TEXT NOT NULL,
+                guild_name TEXT NOT NULL,
+                author_id TEXT NOT NULL,
+                content TEXT,
+                attachment_url TEXT,
+                fire_reacts INTEGER DEFAULT 0,
+                tomato_reacts INTEGER DEFAULT 0,
+                sob_reacts INTEGER DEFAULT 0,
+                created_at INTEGER
+            );
+            CREATE INDEX IF NOT EXISTS idx_message_id ON messages(message_id);
+            CREATE INDEX IF NOT EXISTS idx_channel_id ON messages(channel_id);
+            CREATE INDEX IF NOT EXISTS idx_guild_id ON messages(guild_id);
+            CREATE INDEX IF NOT EXISTS idx_guild_name ON messages(guild_name);
+            CREATE INDEX IF NOT EXISTS idx_author_id ON messages(author_id);
         `);
     }
     return meowDb;
@@ -48,38 +68,42 @@ function formatMessage(msg) {
 
 let messagesToWrite = {};
 function updateCacheWhileRunning(message, isReaction, emoji) {
-    let fileName = `./messagecache/${message.guild.name}/${message.channel.id}.json`;
+    const db = getMeowDb();
+    
     if (!messagesToWrite[message.channel.id]) {
         messagesToWrite[message.channel.id] = [formatMessage(message)];
         setTimeout(() => {
-            let currentChannelData;
+            const insert = db.prepare(`
+                INSERT OR REPLACE INTO messages 
+                (message_id, channel_id, guild_id, guild_name, author_id, content, attachment_url, fire_reacts, tomato_reacts, sob_reacts, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `);
+            
+            const transaction = db.transaction((messages, guildName) => {
+                for (const msg of messages) {
+                    insert.run(
+                        msg.id,
+                        msg.channelId,
+                        msg.guildId,
+                        guildName,
+                        msg.authorId,
+                        msg.content || null,
+                        msg.attachmentUrl || null,
+                        msg.fireReacts || 0,
+                        msg.tomatoReacts || 0,
+                        msg.sobReacts || 0,
+                        Date.now()
+                    );
+                }
+            });
+            
             try {
-                currentChannelData = JSON.parse(fs.readFileSync(fileName));
-            } catch {
-                currentChannelData = [];
-            }
-            messagesToWrite[message.channel.id].forEach(message => {
-                let isDuplicate = false
-                for (let i = 0; i < currentChannelData.length; i++) {
-                    if (currentChannelData[i].id == message.id) {
-                        currentChannelData[i] = message;
-                        isDuplicate = true;
-                        console.log(`	found a duplicate, so i'm updating an old reaction~ ehe~`);
-                    }
-                }
-                if (!isDuplicate) {
-                    currentChannelData.push(message);
-                }
-            });
-
-            let guildDirectory = `./messagecache/${message.guild.name}`;
-            if (!fs.existsSync(guildDirectory)) {
-                fs.mkdirSync(guildDirectory, { recursive: true }); //if the server directory doesn't already exist, we wanna make it :p
-            }
-            fs.writeFile(fileName, JSON.stringify(currentChannelData, null, 2), (err) => {
-                if (err) throw err;
+                transaction(messagesToWrite[message.channel.id], message.guild.name);
                 console.log(`updated cache for ${message.guild.name}'s #${message.channel.name} with new messages >w<`);
-            });
+            } catch (err) {
+                console.error('Error writing messages to database:', err);
+            }
+            
             delete messagesToWrite[message.channel.id]; //removes the channel from messagesToWrite, effectively resetting it
         }, process.env.CACHE_WRITE_FREQUENCY? parseInt(process.env.CACHE_WRITE_FREQUENCY) : 60000); //runs every 60 seconds by default
     } else {
@@ -137,22 +161,53 @@ function filter(filterType, messagesList, message) {
 }
 
 function readServerChannels(guildName, filterType, filterUser) {
+    const db = getMeowDb();
     let messagesList = [];
-    let channels = fs.readdirSync(`./messagecache/${guildName}`);
-
-    channels.forEach(channel => {
-        let channelData = JSON.parse(fs.readFileSync(`./messagecache/${guildName}/${channel}`));
-        channelData.forEach(message => {
-            if (filterUser != undefined) { //if we have a user to filter for
+    
+    try {
+        let query = `
+            SELECT message_id as id, channel_id as channelId, guild_id as guildId, 
+                   author_id as authorId, content, attachment_url as attachmentUrl,
+                   fire_reacts as fireReacts, tomato_reacts as tomatoReacts, 
+                   sob_reacts as sobReacts
+            FROM messages
+            WHERE guild_name = ?
+        `;
+        
+        const params = [guildName];
+        if (filterUser) {
+            query += ' AND author_id = ?';
+            params.push(filterUser);
+        }
+        
+        const results = db.prepare(query).all(...params);
+        
+        // Convert database rows to message format and filter
+        results.forEach(row => {
+            const message = {
+                id: row.id,
+                channelId: row.channelId,
+                guildId: row.guildId,
+                authorId: row.authorId,
+                content: row.content || '',
+                attachmentUrl: row.attachmentUrl || null,
+                fireReacts: row.fireReacts || 0,
+                tomatoReacts: row.tomatoReacts || 0,
+                sobReacts: row.sobReacts || 0
+            };
+            
+            if (filterUser != undefined) {
                 if (filterUser == message.authorId) {
                     messagesList = filter(filterType, messagesList, message);
                 }
-            } else { //if we don't have any user we're looking for~
+            } else {
                 messagesList = filter(filterType, messagesList, message);
             }
         });
-    });
-
+    } catch (err) {
+        console.error('Error reading messages from database:', err);
+    }
+    
     return messagesList;
 }
 
@@ -191,5 +246,5 @@ function getLeaderboardData(serverName) {
 }
 
 module.exports = {
-    readServerChannels, addToMeowDb, updateCacheWhileRunning, getLeaderboardData, formatMessage
+    readServerChannels, addToMeowDb, updateCacheWhileRunning, getLeaderboardData, formatMessage, getMeowDb
 }
