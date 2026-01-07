@@ -1,17 +1,16 @@
 const { EmbedBuilder, SlashCommandBuilder } = require('discord.js');
 const dotenv = require('dotenv');
-const fs = require('fs');
+const { getLeaderboardData } = require('../filemanagement.js');
 
 dotenv.config();
 
 const defaultColour = process.env.EMBED_COLOUR ?? '#7D6D78';
 
 function generateLeaderboard(userInteraction, isSlash) {
-    let filename = `./messagecache/${userInteraction.guild.name}/meow.json`;
-    let meowDb;
-    try {
-        meowDb = JSON.parse(fs.readFileSync(filename));
-    } catch {
+    const serverName = userInteraction.guild.name;
+    let meowDb = getLeaderboardData(serverName);
+    
+    if (!meowDb || meowDb.length === 0) {
         let noMeowMessage = "guys,, you gotta step up your meowing game >_<!! there's no tracked meows in the current server,,";
         if (!isSlash) {
             return userInteraction.channel.send(noMeowMessage);
@@ -20,10 +19,9 @@ function generateLeaderboard(userInteraction, isSlash) {
         }
     }
 
-    meowDb.sort((a, b) => b.totalCount - a.totalCount);
     leaderboardNum = meowDb.length;
     if (meowDb.length > 10) {
-        leaderboardNum = 9;
+        leaderboardNum = 10;
     }
 
     let leaderboardFields = []

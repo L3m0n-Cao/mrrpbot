@@ -1,4 +1,26 @@
 const fs = require('fs');
+const Database = require('better-sqlite3');
+
+// Initialize the meowtabase
+let meowDb = null;
+function getMeowDb() {
+    if (!meowDb) {
+        const dbPath = './meow.db';
+        meowDb = new Database(dbPath);
+        
+        // Create the meow table if it doesn't exist
+        meowDb.exec(`
+            CREATE TABLE IF NOT EXISTS meows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user TEXT NOT NULL,
+                server_name TEXT NOT NULL,
+                timestamp INTEGER NOT NULL
+            );
+            CREATE INDEX IF NOT EXISTS idx_user_server ON meows(user, server_name);
+        `);
+    }
+    return meowDb;
+}
 
 function formatMessage(msg) {
 	fireReacts = msg.reactions.resolve('🔥')?.count || 0; //if we can't resolve it, it just gets set back to 0
@@ -135,50 +157,39 @@ function readServerChannels(guildName, filterType, filterUser) {
 }
 
 function addToMeowDb(authorId, serverName, timestamp) {
-    let guildDirectory = `./messagecache/${serverName}`;
-    let filename = `${guildDirectory}/meow.json`;
-
-    let currentMeowData;
-    try {
-        currentMeowData = JSON.parse(fs.readFileSync(filename));
-    } catch {
-        currentMeowData = [];
-    }
-
-    //have to check if this user is already in our meow db :p
-    let i = 0;
-    let userFound = false;
-    while (i < currentMeowData.length && !userFound) {
-        if (currentMeowData[i].user === authorId) {
-            currentMeowData[i].meowsList.push(
-                {"timestamp":timestamp}
-            )
-            currentMeowData[i].totalCount++;
-            userFound = true;
-        }
-        i++;
-    }
-
-    if (!userFound) { //if we didn't find them before, we have to create a new entry for themm~!!
-        let newMeower = {
-            "user":authorId,
-            "meowsList":[
-                {"timestamp":timestamp}
-            ],
-            "totalCount":1
-        }
-        currentMeowData.push(newMeower);
-    }
-
-    if (!fs.existsSync(guildDirectory)) {
-        fs.mkdirSync(guildDirectory, { recursive: true }); //if the server directory doesn't already exist, we wanna make it :p
-    }
-    fs.writeFile(filename, JSON.stringify(currentMeowData, null, 2), (err) => {
-        if (err) throw err;
-    });
+    const db = getMeowDb();
     
+    try {
+        const insert = db.prepare('INSERT INTO meows (user, server_name, timestamp) VALUES (?, ?, ?)');
+        insert.run(authorId, serverName, timestamp);
+    } catch (err) {
+        console.error('Error adding meow to database:', err);
+    }
+}
+
+function getLeaderboardData(serverName) {
+    const db = getMeowDb();
+    
+    try {
+        const query = db.prepare(`
+            SELECT user, COUNT(*) as totalCount
+            FROM meows
+            WHERE server_name = ?
+            GROUP BY user
+            ORDER BY totalCount DESC
+        `);
+        
+        const results = query.all(serverName);
+        return results.map(row => ({
+            user: row.user,
+            totalCount: row.totalCount
+        }));
+    } catch (err) {
+        console.error('Error getting leaderboard data:', err);
+        return [];
+    }
 }
 
 module.exports = {
-    readServerChannels, addToMeowDb, updateCacheWhileRunning
+    readServerChannels, addToMeowDb, updateCacheWhileRunning, getLeaderboardData, formatMessage
 }

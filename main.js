@@ -6,7 +6,7 @@ const { meowHandler } = require('./meowhandler.js');
 const { randomQuote } = require('./commands/quote.js');
 const { helpMessage } = require('./commands/help.js');
 const { generateLeaderboard } = require('./commands/leaderboard.js');
-const { updateCacheWhileRunning } = require('./filemanagement.js');
+const { updateCacheWhileRunning, formatMessage } = require('./filemanagement.js');
 
 const fs = require('node:fs');
 const dotenv = require('dotenv');
